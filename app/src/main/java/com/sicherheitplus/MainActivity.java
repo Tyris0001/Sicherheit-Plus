@@ -10,13 +10,18 @@ import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.telephony.SmsManager;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
 import android.Manifest;
+import android.widget.EditText;
+import android.widget.TextView;
+
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.navigation.NavigationView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
@@ -102,38 +107,91 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
             @Override
             public void onClick(View view) {
                 ctx = view;
-                // read all data from peristence database under key "Contacts"
-                try {
-                    HashMap<String, String> geoInfo = getNearestLocation(latitude, longitude);
-                    if (geoInfo.isEmpty()) {
-                        Snackbar.make(view, "Something went wrong, you're on your own now.", Snackbar.LENGTH_LONG)
-                                .setAction("Action", null).show();
-                        return;
-                    }
-                    String country = geoInfo.get("Country");
-                    String city = geoInfo.get("City");
-                    String street = geoInfo.get("Street");
-
-                    for (Map.Entry<String, String> entry : contacts.entrySet()) {
-                        String name = entry.getKey();
-                        String phone = entry.getValue();
-                        String message = String.format("Hallo %s, ich bin in Gefahr. Ich befinde mich in %s, %s, %s. Bitte ruf mich nicht an. Diese nachricht wurde mit SicherheitPlus versandt!", name, street, city, country);
-                        SmsManager smsManager = SmsManager.getDefault();
+                // find out if we are on Contacts, History or Home page
+                NavController navController = Navigation.findNavController(MainActivity.this, R.id.nav_host_fragment_content_main);
+                int currentDestination = navController.getCurrentDestination().getId();
+                switch (currentDestination) {
+                    case 2131231029: // Home
+                        // read all data from peristence database under key "Contacts"
                         try {
-                            smsManager.sendTextMessage(phone, null, message, null, null);
-                            Snackbar.make(view, "SMS sent.", Snackbar.LENGTH_LONG)
-                                    .setAction("Action", null).show();
-                        } catch (Exception e) {
-                            Snackbar.make(view, String.format("Unable to send message to contact %s, make sure their phone number is valid!", name), Snackbar.LENGTH_LONG)
+                            HashMap<String, String> geoInfo = getNearestLocation(latitude, longitude);
+                            if (geoInfo.isEmpty()) {
+                                Snackbar.make(view, "Something went wrong, you're on your own now.", Snackbar.LENGTH_LONG)
+                                        .setAction("Action", null).show();
+                                return;
+                            }
+                            String country = geoInfo.get("Country");
+                            String city = geoInfo.get("City");
+                            String street = geoInfo.get("Street");
+
+                            for (Map.Entry<String, String> entry : contacts.entrySet()) {
+                                String name = entry.getKey();
+                                String phone = entry.getValue();
+                                String message = String.format("Hallo %s, ich bin in Gefahr. Ich befinde mich in %s, %s, %s. Bitte ruf mich nicht an. Diese nachricht wurde mit SicherheitPlus versandt!", name, street, city, country);
+                                SmsManager smsManager = SmsManager.getDefault();
+                                try {
+                                    smsManager.sendTextMessage(phone, null, message, null, null);
+                                    Snackbar.make(view, "SMS sent.", Snackbar.LENGTH_LONG)
+                                            .setAction("Action", null).show();
+                                    // append the text in the current fragment to "SMS Sent to <name>"
+                                    TextView textView = findViewById(R.id.text_home);
+                                    textView.setText(String.format("%s SMS sent to %s\n", textView.getText(), name));
+
+                                } catch (Exception e) {
+                                    Snackbar.make(view, String.format("Unable to send message to contact %s, make sure their phone number is valid!", name), Snackbar.LENGTH_LONG)
+                                            .setAction("Action", null).show();
+                                    throw new RuntimeException(e);
+                                }
+                            }
+
+                        } catch (IOException e) {
+                            Snackbar.make(view, "Something went wrong, you're on your own now.", Snackbar.LENGTH_LONG)
                                     .setAction("Action", null).show();
                             throw new RuntimeException(e);
                         }
-                    }
+                        break;
+                    case 2131231028: // History
 
-                } catch (IOException e) {
-                    Snackbar.make(view, "Something went wrong, you're on your own now.", Snackbar.LENGTH_LONG)
-                            .setAction("Action", null).show();
-                    throw new RuntimeException(e);
+                        break;
+
+                    case 2131231032: // Contacts
+                        // Create a AlertDialog Builder
+                        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                        LayoutInflater inflater = getLayoutInflater();
+                        View dialogView = inflater.inflate(R.layout.contact_dialog, null);
+                        builder.setView(dialogView);
+
+                        // Get references to the input fields in the dialog
+                        EditText nameEditText = dialogView.findViewById(R.id.nameEditText);
+                        EditText phoneNumberEditText = dialogView.findViewById(R.id.phoneNumberEditText);
+
+                        // Set positive and negative buttons for the dialog
+                        builder.setPositiveButton("Save", (dialog, which) -> {
+                            // Handle the "Save" button click
+                            String name = nameEditText.getText().toString();
+                            String phoneNumber = phoneNumberEditText.getText().toString();
+
+                            // Save the contact to SharedPreferences
+                            SharedPreferences.Editor editor = sharedPreferences.edit();
+                            editor.putString(name, phoneNumber);
+                            editor.apply();
+
+                            // refresh the page
+                            navController.navigate(R.id.nav_slideshow);
+
+                            // Optionally, update your UI or perform other actions here
+                        });
+
+                        builder.setNegativeButton("Cancel", (dialog, which) -> {
+                            // Handle the "Cancel" button click (if needed)
+                            dialog.dismiss();
+                        });
+
+                        // Create and show the dialog
+                        AlertDialog dialog = builder.create();
+                        dialog.show();
+
+                        break;
                 }
 
 

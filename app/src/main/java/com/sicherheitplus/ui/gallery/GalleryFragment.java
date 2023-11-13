@@ -41,17 +41,19 @@ public class GalleryFragment extends Fragment {
     }
 
     private void createAndAddButtons(LinearLayout linearLayout) {
-        // Create and add buttons here
-        Button button1 = new Button(requireContext());
-        button1.setText("Button 1");
-        button1.setTextColor(getResources().getColor(R.color.black));
+        for (int i = 0; i < 20; i++) {
+            Button button = new Button(getContext());
+            int day = (int) (Math.random() * 30 + 1);
+            int month = (int) (Math.random() * 12 + 1);
+            int year = (int) (Math.random() * 20 + 2000);
+            int hour = (int) (Math.random() * 24);
+            int minute = (int) (Math.random() * 60);
+            int second = (int) (Math.random() * 60);
 
-        Button button2 = new Button(requireContext());
-        button2.setText("Button 2");
-        button2.setTextColor(getResources().getColor(R.color.black));
+            button.setText(day + "/" + month + "/" + year + " - " + hour + ":" + minute + ":" + second);
 
-        // Add buttons to the LinearLayout
-        linearLayout.addView(button1);
-        linearLayout.addView(button2);
+            linearLayout.addView(button);
+        }
+
     }
 }
